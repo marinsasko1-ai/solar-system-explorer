@@ -1,0 +1,431 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:dark;box-sizing:border-box}html{height:100%}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#05070d;color:#fff}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" content="#05070d"><style>html:root{--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}html{background:#05070d;overscroll-behavior:none}html,body{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;overscroll-behavior:none}body{-webkit-user-select:none;user-select:none}input,textarea{-webkit-user-select:text;user-select:text}</style><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Solar System"></head><body>
+<title>Solar System Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the sky fills the screen and everything else floats on glass above it. Desktop: an inspector card on the right and a control dock along the bottom.
+   Phones: the inspector becomes a bottom sheet with three heights (peek, half, full) and the controls move into it. One dark theme by choice: it is a night sky. */
+:root{
+  --ink:#05070d;
+  --deep:#091020;
+  --glow:#13204a;
+  --text:#f4f6fc;
+  --muted:#a2adc9;
+  --accent:#ffb454;
+  --accent-ink:#1c1104;
+  --orbit:rgba(148,164,212,.22);
+  --belt:rgba(176,186,210,.55);
+  --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  --f-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Inter,system-ui,sans-serif;
+  --glass:rgba(20,28,52,.46);
+  --tile:rgba(255,255,255,.055);
+  --hair:rgba(255,255,255,.09);
+  --sat:0px;--sab:0px;
+  --gl:max(16px,env(safe-area-inset-left,0px));
+  --gr:max(16px,env(safe-area-inset-right,0px));
+  --panel-w:clamp(340px,29vw,392px);
+  --spring:cubic-bezier(.34,1.5,.5,1);
+  --spring-soft:cubic-bezier(.22,1.2,.4,1);
+  --out:cubic-bezier(.22,1,.36,1);
+  color-scheme:dark;
+}
+@supports (transition-timing-function:linear(0,1)){
+  :root{
+    --spring:linear(0,0.0969,0.312,0.5562,0.7738,0.9376,1.0419,1.0938,1.1067,1.0952,1.0718,1.0457,1.0228,1.0057,0.995,0.9898,0.9886,0.99,0.9925,0.9953,0.9977,0.9995,1.0006,1.0011,1.0012,1.0011,1.0008,1.0005,1.0002,1,1);
+    --spring-soft:linear(0,0.0614,0.1987,0.3615,0.5198,0.6582,0.7705,0.8563,0.9183,0.9607,0.9878,1.0037,1.0119,1.0149,1.0149,1.0132,1.0108,1.0084,1.0061,1.0042,1.0027,1.0016,1.0009,1.0004,1,1);
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ink);color:var(--text);font:400 15px/1.45 var(--f-ui);-webkit-text-size-adjust:100%;overflow:hidden}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.eyebrow{margin:0;font:600 11px/1.2 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.app{position:relative;height:100%;overflow:hidden}
+
+/* ---------- Liquid glass ---------- */
+.glass{position:relative;isolation:isolate;
+  background:linear-gradient(160deg,rgba(255,255,255,.13),rgba(255,255,255,.03) 46%,rgba(255,255,255,.06)),var(--glass);
+  -webkit-backdrop-filter:blur(26px) saturate(1.8) brightness(1.06);backdrop-filter:blur(26px) saturate(1.8) brightness(1.06);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.28),0 22px 60px -18px rgba(0,0,0,.65),0 3px 10px rgba(0,0,0,.28)}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  background:radial-gradient(260px circle at var(--mx,50%) var(--my,0%),rgba(255,255,255,.17),rgba(255,255,255,0) 62%);opacity:var(--lit,0);transition:opacity .4s}
+.glass::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;z-index:2;
+  background:linear-gradient(150deg,rgba(255,255,255,.62),rgba(255,255,255,.07) 28%,rgba(255,255,255,.02) 62%,rgba(255,255,255,.3));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.glass{background:linear-gradient(160deg,#243055,#141c36)}}
+
+@keyframes glassIn{from{opacity:0;translate:var(--from,0 28px);scale:.965}to{opacity:1;translate:0 0;scale:1}}
+@keyframes fadeIn{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+@keyframes rise{from{opacity:0;translate:0 18px;scale:.985}to{opacity:1;translate:0 0;scale:1}}
+@keyframes rowIn{from{opacity:0;translate:10px 0}to{opacity:1;translate:0 0}}
+@keyframes blurIn{from{opacity:0;filter:blur(10px);translate:0 8px}to{opacity:1;filter:blur(0);translate:0 0}}
+@keyframes popIn{from{opacity:0;scale:.9;translate:0 12px}to{opacity:1;scale:1;translate:0 0}}
+
+/* ---------- Stage ---------- */
+.stage{position:absolute;inset:0;overflow:hidden;
+  background:
+    radial-gradient(ellipse 55% 45% at 14% 10%,rgba(92,66,190,.20),transparent 70%),
+    radial-gradient(ellipse 50% 42% at 88% 92%,rgba(28,118,176,.18),transparent 70%),
+    radial-gradient(ellipse 70% 65% at 50% 46%,var(--glow) 0%,var(--deep) 58%,var(--ink) 100%)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#scene{touch-action:none;cursor:grab;-webkit-tap-highlight-color:transparent}
+#scene:focus-visible{outline-offset:-3px}
+
+.hud{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;
+  padding:calc(var(--sat) + 22px) calc(var(--gr) + var(--panel-w) + 24px) calc(var(--sab) + 108px) var(--gl);
+  text-shadow:0 1px 14px rgba(0,0,0,.65)}
+.hud-top{animation:fadeIn .9s var(--out) .15s backwards}
+.date{margin:8px 0 0;font:700 clamp(32px,4.2vw,50px)/1 var(--f-display);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.date .yr{color:var(--accent)}
+.date .tm{display:block;margin-top:8px;font:600 12.5px/1 var(--f-ui);letter-spacing:.08em;color:var(--muted)}
+.focus{display:inline-block;margin:12px 0 0;padding:8px 14px;border-radius:999px;font-size:13px;line-height:1.35;color:var(--text);text-shadow:none;
+  background:rgba(20,28,52,.5);-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);animation:rise .6s var(--spring-soft) backwards}
+.focus:empty{display:none}
+.hud-bot{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-left:136px;animation:fadeIn .9s var(--out) .5s backwards}
+.notes{flex:1;min-width:0;max-width:48ch;display:grid;gap:3px;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.notes p{margin:0}
+.scalebar{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px;font:600 11px/1 var(--f-ui);color:var(--text);font-variant-numeric:tabular-nums}
+.scalebar i{display:block;height:7px;border:1.5px solid rgba(255,255,255,.8);border-top:0;border-radius:0 0 3px 3px}
+.mini{display:none}
+
+/* ---------- Zoom ladder ---------- */
+.ladder{position:absolute;z-index:3;left:var(--gl);top:calc(var(--sat) + 178px);bottom:calc(var(--sab) + 148px);width:116px;min-height:200px;
+  padding:16px 12px 16px 12px;border-radius:30px;display:flex;flex-direction:column;align-items:stretch;pointer-events:auto;--from:-30px 0;animation:glassIn 1s var(--spring-soft) .45s backwards}
+.ladder .eyebrow{padding-left:4px;margin-bottom:12px}
+.ladder-track{position:relative;flex:1;min-height:90px;touch-action:none;cursor:ns-resize}
+.ladder-line{position:absolute;left:12px;top:0;bottom:0;width:3px;border-radius:2px;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,.12))}
+.tick{position:absolute;left:34px;transform:translateY(-50%);font:600 10px/1 var(--f-ui);color:var(--muted);white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
+.tick::after{content:"";position:absolute;left:-16px;top:50%;width:7px;height:1.5px;border-radius:1px;background:rgba(255,255,255,.3)}
+.ladder-thumb{position:absolute;left:4px;width:19px;height:19px;margin:0;padding:0;border:0;border-radius:50%;transform:translateY(-50%);cursor:grab;touch-action:none;
+  background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.5),0 0 0 4px rgba(255,180,84,.35);transition:box-shadow .3s,scale .45s var(--spring)}
+.ladder-thumb:active{scale:1.2;box-shadow:0 2px 12px rgba(0,0,0,.5),0 0 0 7px rgba(255,180,84,.4)}
+.ladder-thumb span{position:absolute;left:30px;top:50%;transform:translateY(-50%);padding:5px 9px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font:700 11px/1 var(--f-ui);white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums;text-shadow:none}
+
+/* ---------- Buttons, segmented controls, switches, sliders ---------- */
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border:0;border-radius:999px;
+  background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);color:var(--text);font:600 14px/1 var(--f-ui);letter-spacing:-.005em;white-space:nowrap;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .25s,box-shadow .25s,color .25s,transform .55s var(--spring)}
+.btn:hover{background:rgba(255,255,255,.16)}
+.btn:active{transform:scale(.93);transition-duration:.15s,.15s,.15s,.1s}
+.btn.sq{min-width:40px;padding:0;font-size:20px}
+.btn.on,.btn[aria-expanded="true"]{background:rgba(255,255,255,.2)}
+.orb{width:50px;height:50px;min-height:0;padding:0;border-radius:50%;flex:none}
+.orb svg{width:17px;height:17px;fill:currentColor}
+.orb.primary{background:linear-gradient(180deg,#ffc978,#f2a23c);color:var(--accent-ink);box-shadow:0 8px 24px -6px rgba(255,166,50,.75),inset 0 1px 0 rgba(255,255,255,.6)}
+.orb.primary:hover{background:linear-gradient(180deg,#ffd391,#f5ab4a)}
+.orb.primary.paused svg{translate:1px 0}
+
+.seg{position:relative;display:flex;padding:3px;border-radius:999px;background:rgba(0,0,0,.26);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 2px 8px rgba(0,0,0,.3)}
+.seg::before{content:"";position:absolute;top:3px;bottom:3px;left:0;width:var(--w,0);transform:translateX(var(--x,3px));border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.32),rgba(255,255,255,.15));box-shadow:0 3px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.seg.ready::before{transition:transform .6s var(--spring),width .6s var(--spring)}
+.seg .btn{position:relative;z-index:1;flex:1 1 auto;min-height:36px;padding:0 14px;background:none;box-shadow:none;color:var(--muted)}
+.seg .btn:hover{color:var(--text)}
+.seg .btn[aria-pressed="true"]{color:#fff}
+.seg .btn:active{transform:scale(.96)}
+
+.field{display:flex;align-items:center;gap:12px;min-width:0}
+.field label{font:600 11px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.field output{min-width:78px;font:600 13px/1 var(--f-ui);font-variant-numeric:tabular-nums;text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:90px;height:30px;margin:0;background:transparent;cursor:pointer;touch-action:pan-y}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:linear-gradient(90deg,var(--accent) var(--p,50%),rgba(255,255,255,.18) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;margin-top:-10px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.45);transition:scale .4s var(--spring)}
+input[type=range]:active::-webkit-slider-thumb{scale:1.14}
+input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:rgba(255,255,255,.18)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:99px;background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;border:0;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+
+.switches{display:grid;padding:0 16px;border-radius:20px;background:var(--tile)}
+.sw{appearance:none;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:48px;padding:0;border:0;border-bottom:1px solid var(--hair);background:none;
+  font:500 15.5px/1.2 var(--f-ui);text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.sw:last-child{border-bottom:0}
+.sw::after{content:"";flex:none;width:52px;height:32px;border-radius:99px;background-color:rgba(130,140,172,.4);
+  background-image:radial-gradient(circle closest-side,#fff 94%,transparent 100%);background-repeat:no-repeat;background-size:28px 28px;background-position:2px 50%;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:background-color .3s,background-position .55s var(--spring)}
+.sw[aria-pressed="true"]::after{background-color:var(--accent);background-position:calc(100% - 2px) 50%}
+.sw:active::after{background-size:34px 28px}
+
+.date-in{height:40px;padding:0 12px;border:0;border-radius:14px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font:500 14px var(--f-ui);color:var(--text);font-variant-numeric:tabular-nums;min-width:0}
+.jump{display:flex;gap:10px;align-items:center}
+.zoom{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ---------- Control dock ---------- */
+.bar{position:absolute;z-index:6;left:var(--gl);right:calc(var(--gr) + var(--panel-w) + 16px);bottom:calc(var(--sab) + 16px);display:flex;justify-content:center;pointer-events:none}
+.bar-in{position:relative;max-width:100%;pointer-events:auto}
+.dock{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px;padding:10px 14px 10px 10px;border-radius:34px;--from:0 34px;animation:glassIn 1s var(--spring-soft) .35s backwards}
+.speed{flex:1 1 230px;min-width:200px}
+.ctl-title{display:none}
+.viewpop{position:absolute;bottom:calc(100% + 14px);right:0;width:min(404px,calc(100vw - 32px));display:grid;gap:16px;padding:18px;border-radius:30px;transform-origin:100% 100%;
+  opacity:0;visibility:hidden;scale:.9;translate:0 12px;transition:opacity .22s,scale .5s var(--spring),translate .5s var(--spring),visibility 0s .5s}
+.viewpop.open{opacity:1;visibility:visible;scale:1;translate:0 0;transition-delay:0s}
+.grp{display:grid;gap:10px;min-width:0}
+
+/* ---------- Inspector card / sheet ---------- */
+.panel{position:absolute;z-index:5;top:calc(var(--sat) + 16px);bottom:calc(var(--sab) + 16px);right:var(--gr);width:var(--panel-w);border-radius:34px;overflow:hidden;--from:44px 0;animation:glassIn 1.1s var(--spring-soft) .25s backwards}
+.grab{display:none}
+.panel-scroll{position:relative;height:100%;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent;z-index:1}
+.panel-in{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;padding:20px 18px 24px}
+.tabs{display:flex}
+.tabs .btn{flex:1 1 0;min-width:0;padding:0 6px;min-height:38px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips.many{max-height:150px;overflow-y:auto;padding:2px 2px 8px;scrollbar-width:none;-webkit-mask-image:linear-gradient(#000 calc(100% - 22px),transparent);mask-image:linear-gradient(#000 calc(100% - 22px),transparent)}
+.chips.many::-webkit-scrollbar{display:none}
+.chip{appearance:none;flex:none;display:inline-flex;align-items:center;gap:9px;min-height:40px;padding:0 15px 0 8px;border:0;border-radius:999px;background:rgba(255,255,255,.07);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);color:var(--muted);font:600 14px/1 var(--f-ui);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  transition:background .3s,color .25s,box-shadow .35s,transform .6s var(--spring)}
+.chip i{width:24px;height:24px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.85) 0,rgba(255,255,255,0) 30%),radial-gradient(circle at 42% 38%,var(--c) 0,color-mix(in srgb,var(--c) 52%,#000) 72%,color-mix(in srgb,var(--c) 22%,#000) 100%);
+  box-shadow:0 0 14px color-mix(in srgb,var(--c) 50%,transparent),inset -2px -3px 5px rgba(0,0,0,.35)}
+.chip.sub{min-height:34px;padding:0 13px 0 7px;font-size:13px;margin-left:2px}
+.chip.sub i{width:19px;height:19px}
+.chip:hover{color:var(--text);background:rgba(255,255,255,.12)}
+.chip:active{transform:scale(.93);transition-duration:.15s,.15s,.15s,.1s}
+.chip[aria-pressed="true"]{color:#fff;background:rgba(255,255,255,.17);box-shadow:inset 0 0 0 1.5px var(--accent),0 8px 26px -8px rgba(255,180,84,.6);transform:scale(1.04)}
+
+.head .eyebrow{margin-bottom:10px}
+.name{margin:0;font:760 clamp(36px,3.4vw,44px)/1 var(--f-display);letter-spacing:-.04em;text-wrap:balance}
+.blurb{margin:12px 0 0;font-size:15px;line-height:1.5;color:#dfe4f2}
+.now{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.now>div{min-width:0;padding:15px 16px;border-radius:22px;background:var(--tile);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.now.one{grid-template-columns:1fr}
+.k{display:block;font:600 11px/1.25 var(--f-ui);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.v{display:block;margin-top:9px;font:700 26px/1 var(--f-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.v small{font-size:13px;font-weight:600;letter-spacing:0;color:var(--muted)}
+.s{display:block;margin-top:7px;font:500 12.5px/1.35 var(--f-ui);color:var(--muted);font-variant-numeric:tabular-nums}
+.stats{margin:0;display:grid;padding:2px 16px;border-radius:22px;background:var(--tile)}
+.stats>div{display:flex;justify-content:space-between;gap:18px;padding:12px 0;border-bottom:1px solid var(--hair)}
+.stats>div:last-child{border-bottom:0}
+.stats dt{color:var(--muted)}
+.stats dd{margin:0;min-width:0;text-align:right;font:600 14px/1.4 var(--f-ui);font-variant-numeric:tabular-nums}
+.you{padding:18px;border-radius:24px;background:var(--tile)}
+.you-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+.you-grid>div{min-width:0}
+.you label{display:block;font:500 13px/1.3 var(--f-ui);color:var(--muted)}
+.num{width:100%;height:42px;margin-top:9px;padding:0 12px;border:0;border-radius:14px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font:600 16px var(--f-ui);font-variant-numeric:tabular-nums}
+.res{margin-top:14px}
+.res b{display:block;font:700 30px/1 var(--f-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.res span{display:block;margin-top:5px;font-size:12.5px;color:var(--muted)}
+.hint{margin:14px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}
+.fact p:last-child{margin:8px 0 0;line-height:1.55;color:#dfe4f2}
+.fact .eyebrow{margin:0}
+.foot{margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
+
+.panel-in.enter .head{animation:rise .8s var(--spring-soft) backwards}
+.panel-in.enter .name{animation:blurIn .7s var(--out) .04s backwards}
+.panel-in.enter .now{animation:rise .8s var(--spring-soft) .07s backwards}
+.panel-in.enter .stats{animation:rise .8s var(--spring-soft) .14s backwards}
+.panel-in.enter .stats>div{animation:rowIn .6s var(--out) backwards;animation-delay:calc(.2s + var(--j,0) * 34ms)}
+.panel-in.enter .you{animation:rise .8s var(--spring-soft) .22s backwards}
+.panel-in.enter .fact{animation:rise .8s var(--spring-soft) .28s backwards}
+.panel-in.enter .foot{animation:rise .8s var(--spring-soft) .34s backwards}
+
+/* ---------- Tablets and small windows: keep the dock on one row ---------- */
+@media (min-width:761px) and (max-width:1200px){
+  .speed label{display:none}
+  .speed{flex:1 1 140px;min-width:130px}
+  .dock{gap:10px 12px;padding:10px 12px 10px 10px}
+  .seg .btn{padding:0 11px;font-size:13px}
+  .speed output{min-width:70px;font-size:12.5px}
+}
+
+/* ---------- Phones: the inspector is a bottom sheet ---------- */
+@media (max-width:760px){
+  .hud{padding:calc(var(--sat) + 16px) calc(var(--gr) + 64px) calc(var(--inset-b,240px) + 14px) var(--gl)}
+  .hud-bot{padding-left:0}
+  .date{font-size:34px}
+  .date .tm{margin-top:6px;font-size:12px}
+  .focus{font-size:12.5px;padding:7px 12px;max-width:100%}
+  .notes{font-size:11.5px;max-width:none}
+  .notes .tip{display:none}
+  .notes p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .mini{display:grid;place-items:center;position:absolute;z-index:3;top:calc(var(--sat) + 14px);right:var(--gr);width:46px;height:46px;pointer-events:auto;border-radius:50%;padding:0;border:0;--from:0 -20px;animation:glassIn .9s var(--spring-soft) .5s backwards}
+  .mini svg{width:16px;height:16px;fill:currentColor}
+  .ladder{left:auto;right:var(--gr);top:calc(var(--sat) + 76px);bottom:calc(var(--inset-b,240px) + 64px);width:46px;min-height:0;padding:12px 8px;--from:30px 0}
+  .ladder .eyebrow{padding:0;margin-bottom:10px;text-align:center;font-size:10px;letter-spacing:.08em}
+  .ladder-line{left:auto;right:50%;margin-right:-1.5px}
+  .tick{left:auto;right:50%;font-size:0}
+  .tick::after{left:auto;right:10px;width:6px}
+  .ladder-thumb{left:auto;right:50%;margin-right:-9.5px}
+  .ladder-thumb span{left:auto;right:30px}
+
+  .panel{top:calc(var(--sat) + 52px);bottom:0;left:0;right:0;width:auto;height:auto;border-radius:34px 34px 0 0;touch-action:none;--from:0 60px;
+    transform:translateY(var(--sy,calc(100% - 250px)));transition:transform .62s var(--spring-soft);will-change:transform;
+    -webkit-backdrop-filter:blur(22px) saturate(1.6) brightness(1.04);backdrop-filter:blur(22px) saturate(1.6) brightness(1.04);animation-delay:.3s}
+  .panel.dragging{transition:none}
+  .grab{display:block;position:relative;z-index:3;width:100%;height:28px;padding:0;border:0;background:none;touch-action:none;cursor:grab}
+  .grab span{display:block;width:40px;height:5px;margin:11px auto 0;border-radius:3px;background:rgba(255,255,255,.4);transition:background .2s,width .4s var(--spring)}
+  .grab:active span{width:54px;background:rgba(255,255,255,.65)}
+  .panel-scroll{height:calc(100% - 28px);padding-bottom:var(--sab);touch-action:pan-y}
+  .panel.d-peek .panel-scroll{overflow-y:hidden;touch-action:none}
+  .head,.tabs{touch-action:none}
+  .panel-in{padding:2px 16px 28px;gap:16px}
+  .head{order:-3}
+  .tabs{order:-2}
+  .chips,.chips.many{order:-1;flex-wrap:nowrap;max-height:none;overflow-x:auto;overflow-y:hidden;margin-inline:-16px;padding:2px 16px 4px;scrollbar-width:none;touch-action:pan-x;-webkit-mask-image:none;mask-image:none}
+  .chips::-webkit-scrollbar{display:none}
+  .head .eyebrow{margin-bottom:6px}
+  .name{font-size:34px}
+  .blurb{margin-top:10px;font-size:15px}
+
+  .app[data-detent="full"] .hud-top,.app[data-detent="full"] .mini{opacity:0;pointer-events:none}
+  .hud-top,.mini{transition:opacity .35s}
+  .bar{position:static;display:block;order:5}
+  .bar-in{max-width:none}
+  .ctl-title{display:block;margin-bottom:12px}
+  .dock.glass{display:grid;grid-template-columns:auto 1fr;gap:14px;padding:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none}
+  .dock.glass::before,.dock.glass::after,.viewpop.glass::before,.viewpop.glass::after{display:none}
+  .dock .seg{grid-column:1 / -1}
+  .dock .seg .btn{padding:0 6px;font-size:13px}
+  .speed{min-width:0;flex-basis:auto}
+  #viewBtn{display:none}
+  .viewpop.glass{position:static;width:auto;margin-top:18px;padding:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;opacity:1;visibility:visible;scale:1;translate:none;transition:none}
+}
+@media (max-width:380px){.name{font-size:30px}.v{font-size:23px}.dock .seg .btn{font-size:12px}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}
+}
+</style>
+
+<div class="app" id="app">
+  <section class="stage" id="stage" aria-label="Solar system view">
+    <canvas id="stars" aria-hidden="true"></canvas>
+    <canvas id="scene" tabindex="0" role="application" aria-label="Solar system and nearby stars. Left and right arrows choose a body, plus and minus zoom, space pauses, escape returns to the overview."></canvas>
+    <div class="hud">
+      <div class="hud-top">
+        <h1 class="eyebrow">Solar System Explorer</h1>
+        <p class="date"><span id="dDay">10 Oct</span> <span class="yr" id="dYear">2026</span><span class="tm" id="dTime"></span></p>
+        <p class="focus" id="focusLine"></p>
+      </div>
+      <div class="hud-bot">
+        <div class="notes">
+          <p id="scaleNote"></p>
+          <p class="tip">Drag to pan. Scroll, pinch or use the scale on the left to zoom. Tap a body to fly to it.</p>
+        </div>
+        <div class="scalebar" id="scaleBar"><span id="sbLabel"></span><i id="sbLine"></i></div>
+      </div>
+    </div>
+    <button class="mini glass" id="playMini" type="button" aria-label="Pause"></button>
+    <div class="ladder glass" id="ladder">
+      <p class="eyebrow" title="Width of the shorter side of the view">Span</p>
+      <div class="ladder-track" id="lTrack">
+        <div class="ladder-line"></div>
+        <button class="ladder-thumb" id="lThumb" type="button" role="slider" aria-label="Zoom" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span id="lRead"></span></button>
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel glass" id="panel" aria-label="Body details">
+    <button class="grab" id="grab" type="button" aria-label="Resize panel"><span></span></button>
+    <div class="panel-scroll" id="panelScroll">
+      <div class="panel-in enter" id="panelIn">
+        <div class="seg tabs" role="group" aria-label="Browse">
+          <button class="btn" id="tabSys" type="button" aria-pressed="true">Solar System</button>
+          <button class="btn" id="tabDwarf" type="button" aria-pressed="false">Dwarf planets</button>
+          <button class="btn" id="tabStars" type="button" aria-pressed="false">Nearby stars</button>
+        </div>
+        <div class="chips" id="chips" role="group" aria-label="Choose a body"></div>
+        <header class="head">
+          <p class="eyebrow" id="pKind"></p>
+          <h2 class="name" id="pName"></h2>
+          <p class="blurb" id="pBlurb"></p>
+        </header>
+        <section class="now" id="now" aria-label="Right now">
+          <div><span class="k" id="n1k"></span><span class="v" id="n1v"></span><span class="s" id="n1s"></span><span class="s" id="n1l"></span></div>
+          <div id="n2"><span class="k" id="n2k"></span><span class="v" id="n2v"></span><span class="s" id="n2s"></span><span class="s" id="n2l"></span></div>
+        </section>
+        <dl class="stats" id="pStats"></dl>
+        <section class="you" id="you">
+          <p class="eyebrow" id="youTitle"></p>
+          <div class="you-grid">
+            <div>
+              <label for="age">Your age in years</label>
+              <input class="num" id="age" type="number" inputmode="decimal" min="0" max="120" step="1" value="30">
+              <div class="res"><b id="ageRes">30</b><span id="ageUnit"></span></div>
+            </div>
+            <div>
+              <label for="mass">Your mass in kg</label>
+              <input class="num" id="mass" type="number" inputmode="decimal" min="0" max="400" step="1" value="70">
+              <div class="res"><b id="massRes">70</b><span>kg on the scale</span></div>
+            </div>
+          </div>
+          <p class="hint">Example values. Change them to your own. Gas and ice giants have no solid surface, so their weights use gravity at the cloud tops.</p>
+        </section>
+        <section class="fact">
+          <p class="eyebrow">Fact</p>
+          <p id="pFact"></p>
+        </section>
+        <p class="foot" id="foot"></p>
+        <div id="sheetControls"></div>
+      </div>
+    </div>
+  </aside>
+
+  <section class="bar" id="bar" aria-label="Controls">
+    <div class="bar-in">
+      <p class="eyebrow ctl-title">Time and view</p>
+      <div class="dock glass">
+        <button class="btn orb primary" id="play" type="button" aria-label="Pause"></button>
+        <div class="field speed">
+          <label for="speed">Speed</label>
+          <input id="speed" type="range" min="0" max="9" step="1" value="6">
+          <output id="speedOut" for="speed">2 weeks/s</output>
+        </div>
+        <div class="seg" role="group" aria-label="Distance scale">
+          <button class="btn" id="scComp" type="button" aria-pressed="true">Compressed</button>
+          <button class="btn" id="scTrue" type="button" aria-pressed="false">To scale</button>
+          <button class="btn" id="scReal" type="button" aria-pressed="false" title="Every planet at its true radius, at true distances">Real size 1:1</button>
+        </div>
+        <button class="btn" id="viewBtn" type="button" aria-expanded="false" aria-controls="viewPop">View</button>
+      </div>
+      <div class="viewpop glass" id="viewPop" role="group" aria-label="View options">
+        <section class="grp">
+          <p class="eyebrow">Time</p>
+          <div class="jump">
+            <label class="sr" for="jump">Jump to date</label>
+            <input class="date-in" id="jump" type="date" min="1800-01-01" max="2300-12-31">
+            <button class="btn" id="today" type="button">Today</button>
+          </div>
+        </section>
+        <section class="grp">
+          <p class="eyebrow">Show</p>
+          <div class="switches" role="group" aria-label="Show">
+            <button class="sw" id="tOrbits" type="button" aria-pressed="true">Orbits</button>
+            <button class="sw" id="tLabels" type="button" aria-pressed="true">Labels</button>
+            <button class="sw" id="tBelt" type="button" aria-pressed="true">Asteroids</button>
+            <button class="sw" id="tOort" type="button" aria-pressed="true" title="Show the Oort cloud at light-year zoom levels">Oort cloud</button>
+            <button class="sw" id="tDay" type="button" aria-pressed="true" title="Light each world from the Sun, with a night side">Day and night</button>
+          </div>
+        </section>
+        <section class="grp">
+          <p class="eyebrow">Camera</p>
+          <div class="field tilt">
+            <label for="tilt">Tilt</label>
+            <input id="tilt" type="range" min="20" max="90" step="1" value="58">
+            <output id="tiltOut" for="tilt">58°</output>
+          </div>
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button class="btn sq" id="zOut" type="button" aria-label="Zoom out">−</button>
+            <button class="btn sq" id="zIn" type="button" aria-label="Zoom in">+</button>
+            <button class="btn" id="zReset" type="button">Solar System</button>
+            <button class="btn" id="zStars" type="button">Nearby stars</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+</div>
+<script src="gl-lib.js"></script>
+<script src="gl-rocky.js"></script>
+<script src="gl-earth.js"></script>
+<script src="gl-giants.js"></script>
+<script src="gl-moons.js"></script>
+<script src="gl-map.js"></script>
+<script src="gl-core.js"></script>
+<script src="app.js"></script>
+<script src="ui.js"></script>
+
+<script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+</body></html>
